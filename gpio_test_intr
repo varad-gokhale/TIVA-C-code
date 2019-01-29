@@ -1,0 +1,80 @@
+#include "tm4c123gh6pm.h"
+#include "stdint.h"
+#include "stdbool.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+#define BIT14 (1<<14)
+#define BIT23 (1<<23)
+#define BIT24 (1<<24)
+#define BIT25 (1<<25)
+#define BIT26 (1<<26)
+
+volatile char flag = 0;
+
+void GPIOF_Handler(void)
+{
+	GPIO_PORTF_ICR_R |= 0x10;
+	GPIO_PORTF_DATA_R ^= 0x02;
+}
+
+void init_clock()
+{
+	SYSCTL_RCC_R |= SYSCTL_RCC_BYPASS;
+	SYSCTL_RCC_R &= ~SYSCTL_RCC_USESYSDIV;														//bypass PLL and don't use divider so that
+	SYSCTL_RCC_R |= SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV;		//set OSC freq, specify OSCMAIN as sysclk and use divider
+	SYSCTL_RCC_R &= ~SYSCTL_RCC_PWRDN;
+
+	SYSCTL_RCC_R |= BIT25;
+	SYSCTL_RCC_R &= ~(BIT23);
+	SYSCTL_RCC_R &= ~(BIT24);
+	SYSCTL_RCC_R &= ~(BIT26);
+
+	while((SYSCTL_RIS_R & SYSCTL_RIS_PLLLRIS) == 0)												//until PLL has not reached stable frequency, spin
+		;
+	SYSCTL_RCC_R &= ~SYSCTL_RCC_BYPASS;
+}
+void init_gpio()
+{
+	SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R5;
+	
+	GPIO_PORTF_DIR_R |= 0x02;
+	GPIO_PORTF_AFSEL_R &= ~0x02;
+	GPIO_PORTF_DR8R_R |= 0x02;
+	GPIO_PORTF_DEN_R |= 0x02;
+
+	
+	GPIO_PORTF_DIR_R &= ~0x10;
+	GPIO_PORTF_AFSEL_R &= ~0x10;
+	GPIO_PORTF_DR2R_R |= 0x10;
+	GPIO_PORTF_PUR_R |= 0x10;
+	GPIO_PORTF_DEN_R |= 0x10;
+	
+	GPIO_PORTF_IM_R &= ~0x10;
+	GPIO_PORTF_IS_R &= ~0x10;
+	GPIO_PORTF_IBE_R &= ~0x10;
+	GPIO_PORTF_RIS_R &= ~0x10;
+	GPIO_PORTF_IEV_R &= ~0x10;
+	GPIO_PORTF_IM_R |= 0x10;
+	
+		
+}
+void delay_1s()
+{				
+	int i,j,k;
+	for(i = 0; i < 1000; ++i){
+		for(j = 0; j < 1000; ++j){
+			for(k = 0; k < 40; ++k);
+			}
+	}
+}
+
+int main(void)
+{
+	init_clock();
+	init_gpio();
+	
+	NVIC_EN0_R |= (1<<30);
+	
+	while(1);
+}
